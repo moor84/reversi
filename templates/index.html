@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <script src="/static/js/vendor/jquery-2.1.1.js"></script>
+        <script src="/static/js/vendor/fabric/fabric.js"></script>
+        <script src="/static/js/screen.js"></script>
+        <script src="/static/js/app.js"></script>
+        <script>
+            $(function () {
+                var app = new App({
+                    canvasId: 'screen',
+                    host: 'localhost',
+                    port: '8888',
+                });
+                app.run();
+            });
+        </script>
+    </head>
+    <body>
+        <canvas id="screen" height="600" width="600" style="height: 600px; width: 600px;">
+        </canvas>
+    </body>
+</html>
