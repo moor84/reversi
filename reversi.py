@@ -8,6 +8,8 @@ import tornado.web
 import tornado.websocket
 from tornado.options import define, options
 
+from app.game import Game
+
 
 define("port", default=8888, help="run on the given port", type=int)
 
@@ -33,16 +35,29 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
+    game = None
+
     def open(self):
         print 'new connection'
-        self.write_message("Hello World")
+        self.game = Game(conn=self)
 
-    def on_message(self, message):
-        print 'message received %s' % message
-        parsed = tornado.escape.json_decode(message)
+    def on_message(self, data):
+        print 'message received %s' % data
+        message = tornado.escape.json_decode(data)
+        handler = getattr(self.game, 'on_' + message['event'])
+        if handler:
+            handler(message['data'])
 
     def on_close(self):
         print 'connection closed'
+
+    def send_message(self, event, data):
+        message = {
+            'event': event,
+            'data': data
+        }
+        # print 'sending message: %s' % message
+        self.write_message(tornado.escape.json_encode(message))
 
 
 def main():

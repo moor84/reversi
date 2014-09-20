@@ -9,19 +9,13 @@ var CellState = {
 var BOARD_HOR = 8;
 var BOARD_VER = 8;
 
-var DEFAULT_POSITION = [
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 3, 0, 0, 0, 0],
-    [0, 0, 3, 1, 2, 0, 0, 0],
-    [0, 0, 0, 2, 1, 3, 0, 0],
-    [0, 0, 0, 0, 3, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0]
-];
-
 var Board = function (options) {
     var canvas = options.canvas;
+
+    this.top = options.top;
+    this.left = options.left;
+    this.width = options.width;
+    this.height = options.height;
 
     var renderCell = function (state, t, l, w, h) {
         if (state == CellState.WHITE) {
@@ -95,17 +89,38 @@ var Board = function (options) {
 
     this.render = function (position) {
         renderBackground();
-        renderPosition(position);
+        if (position) {
+            renderPosition(position);
+        }
+    };
+
+    this.getCellFromCoords = function (x, y) {
+        var localX = x - this.left;
+        var localY = y - this.top;
+        var cellWidth = options.width / BOARD_HOR;
+        var cellHeight = options.height / BOARD_VER;
+        return [Math.floor(localY / cellHeight), Math.floor(localX / cellWidth)];
     };
 };
 
-var Screen = function (options) {
-    this.render = function (position) {
+var Screen = function (screen_options) {
+    this.render = function (data) {
+        var screen = this;
         if (!this.canvas) {
-            this.canvas = new fabric.Canvas(options.canvasId, {
+            this.canvas = new fabric.Canvas(screen_options.canvasId, {
                 backgroundColor: 'blue',
                 interactive: false,
                 selection: false
+            });
+            this.canvas.on('mouse:down', function(options) {
+                var point = screen.canvas.getPointer(options.e);
+                screen_options.onClick(point.x, point.y);
+                if (point.x >= screen.board.left && point.y >= screen.board.top
+                    && point.x <= (screen.board.left + screen.board.width)
+                    && point.y <= (screen.board.top + screen.board.height)) {
+                    var cell = screen.board.getCellFromCoords(point.x, point.y);
+                    screen_options.onBoardClicked(cell[0], cell[1]);
+                }
             });
         }
 
@@ -120,7 +135,6 @@ var Screen = function (options) {
         }
 
         this.canvas.clear();
-        this.board.render(position || DEFAULT_POSITION);
+        this.board.render(data.position);
     }
-
 };
