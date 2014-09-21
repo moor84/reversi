@@ -1,18 +1,22 @@
 <!DOCTYPE html>
 <html>
     <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Reversi</title>
         <script src="/static/js/vendor/jquery-2.1.1.js"></script>
         <script src="/static/js/vendor/fabric/fabric.js"></script>
         <script src="/static/js/screen.js"></script>
         <script src="/static/js/app.js"></script>
         <script>
             $(function () {
-                var app = new App({
+                window.app = new App({
                     canvasId: 'screen',
                     host: 'localhost',
                     port: '8888',
                 });
-                app.run();
+                window.app.run();
             });
         </script>
     </head>

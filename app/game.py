@@ -1,3 +1,4 @@
+from uuid import uuid1
 from copy import deepcopy
 
 
@@ -123,7 +124,6 @@ class Board(object):
 
     def get_score(self):
         # Determine the score by counting the tiles.
-        # Returns a dictionary with keys 'X' and 'O'.
         score = {
             PlayerSide.WHITE: 0,
             PlayerSide.BLACK: 0,
@@ -156,19 +156,87 @@ class Board(object):
             self._position[_x][_y] = side
 
 
-class Game(object):
-    def __init__(self, conn):
+class Player(object):
+    def __init__(self, side, conn):
+        self.id = str(uuid1().hex)
+        self.side = side
         self.conn = conn
-        self.board = Board()
+        self.ip = conn.request.remote_ip
 
-    def send_position_changed(self, side):
-        self.conn.send_message('position_changed', {
-            'position': self.board.get_possible_moves_position(side)
+
+class Game(object):
+    games = {}
+
+    @classmethod
+    def on_message(cls, message, conn):
+        if message['event'] == 'start_new_game':
+            Game.start_new_game(conn)
+            return
+        elif message['event'] == 'join_game':
+            Game.join_game(conn)
+            return
+        game = Game.games.get([message['game_id']])
+        if not game:
+            # TODO: react
+            return
+        handler = getattr(game, 'on_' + message['event'])
+        if handler:
+            handler(message['data'])
+
+    @classmethod
+    def start_new_game(cls, conn):
+        game = Game(conn)
+        cls.games[game.id] = game
+        conn.send_message('game_started', {
+            'game_id': game.id,
+            'player': {
+                'id': game.default_player.id,
+                'ip': game.default_player.ip
+            }
         })
 
-    def on_game_started(self, data):
+    @classmethod
+    def join_game(cls, conn):
+        game = None
+        for game_id, _game in cls.games.items():
+            if len(_game.players.keys()) == 1:
+                game = _game
+        if not game:
+            print 'No game available'
+            # TODO: react
+            return
+        # The whites're second
+        player = Player(PlayerSide.WHITE, conn)
+        game.players[player.id] = player
+        conn.send_message('joined_game', {
+            'game_id': game.id,
+            'player': {
+                'ip': game.default_player.ip
+            }
+        })
+        game.default_player.conn.send_message('player_joined_game', {
+            'game_id': game.id,
+            'player': {
+                'ip': player.ip
+            }
+        })
+        game.send_position_changed()
+
+    def __init__(self, conn):
+        self.id = str(uuid1().hex)
         self.board = Board()
-        self.send_position_changed(PlayerSide.BLACK)
+        # Player, who created the game (the blacks're first)
+        self.default_player = Player(
+            PlayerSide.BLACK, conn)
+        self.players = {
+            self.default_player.id: self.default_player,
+        }
+
+    def send_position_changed(self):
+        for player_id, player in self.players.items():
+            player.conn.send_message('position_changed', {
+                'position': self.board.get_possible_moves_position(player.side)
+            })
 
     def on_move(self, data):
         try:
@@ -176,4 +244,4 @@ class Game(object):
         except InvalidMoveError as ex:
             # TODO: react
             print ex
-        self.send_position_changed(PlayerSide.BLACK)
+        self.send_position_changed()

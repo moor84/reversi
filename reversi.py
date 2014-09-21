@@ -35,18 +35,13 @@ class MainHandler(tornado.web.RequestHandler):
 
 
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
-    game = None
-
     def open(self):
         print 'new connection'
-        self.game = Game(conn=self)
 
     def on_message(self, data):
         print 'message received %s' % data
         message = tornado.escape.json_decode(data)
-        handler = getattr(self.game, 'on_' + message['event'])
-        if handler:
-            handler(message['data'])
+        Game.on_message(message, self)
 
     def on_close(self):
         print 'connection closed'
