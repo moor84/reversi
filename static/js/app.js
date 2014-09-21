@@ -32,7 +32,11 @@ var App = function (options) {
     };
 
     this.send = function (event, data) {
-        var payload = JSON.stringify({event: event, data: data});
+        var payload = JSON.stringify({
+            event: event,
+            data: data,
+            game_id: this.gameId
+        });
         // console.log('sending message: ' + payload);
         this.ws.send(payload);
     };
@@ -46,7 +50,7 @@ var App = function (options) {
 
                 },
                 onBoardClicked: function (cellA, cellB) {
-                    console.log('Board clicked - ' + cellA + ':' + cellB);
+                    // console.log('Board clicked - ' + cellA + ':' + cellB);
                     app.on_board_clicked(cellA, cellB);
                 },
             });
@@ -98,28 +102,27 @@ var App = function (options) {
         this.gameId = data.game_id
         this.playerId = data.player.id
         console.log('Joined game: ' + data.game_id);
-        console.log('Your opponent (black): (' + data.player.ip + ')');
+        console.log('Your opponent (black): (' + data.host_ip + ')');
         console.log('You play white tiles');
-        // TODO:
-        this.updateScreen();
+        document.title = 'Reversi: White';
     };
 
     this.on_player_joined_game = function (data) {
         console.log('Player joined the game');
         console.log('Your opponent (white): (' + data.player.ip + ')');
         console.log('You play black tiles');
-        this.setMyTurn();
+        document.title = 'Reversi: Black';
     };
 
     this.on_board_clicked = function (cellX, cellY) {
         if (!this.gameId || !this.position) {
             return;
         }
-        if (!this.myTurn) {
+        if (!this.playerId || !this.myTurn) {
             return;
         }
         if (this.position[cellX][cellY] == CellState.POSSIBLE_MOVE) {
-            this.send('move', {'x': cellX, 'y': cellY});
+            this.send('move', {'x': cellX, 'y': cellY, 'player_id': this.playerId});
         } else {
             console.log('Invalid move');
         }
@@ -127,6 +130,27 @@ var App = function (options) {
 
     this.on_position_changed = function (data) {
         this.position = data.position;
+        console.log('Your score: ' + data.my_score + '. Opponent\'s score: ' + data.opponents_score);
+        if (data.my_turn) {
+            this.setMyTurn();
+        } else {
+            this.setOpponentsTurn();
+        }
+        this.updateScreen();
+    };
+
+    this.on_game_over = function (data) {
+        this.position = data.position;
+        this.gameId = undefined;
+        this.playerId = undefined;
+        console.log('Your score: ' + data.my_score + '. Opponent\'s score: ' + data.opponents_score);
+        if (data.i_won) {
+            console.log("Congrats! You're the winner! :)");
+        } else if (data.opponent_won) {
+            console.log("Sorry, you've lost the game :(");
+        } else {
+            console.log('The game was a tie!');
+        }
         this.updateScreen();
     };
 }

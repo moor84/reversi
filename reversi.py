@@ -51,7 +51,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
             'event': event,
             'data': data
         }
-        # print 'sending message: %s' % message
+        print 'sending message: %s' % message
         self.write_message(tornado.escape.json_encode(message))
 
 

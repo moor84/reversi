@@ -158,7 +158,7 @@ class Board(object):
 
 class Player(object):
     def __init__(self, side, conn):
-        self.id = str(uuid1().hex)
+        self.id = str(uuid1().hex)  # Keep it secret for other player
         self.side = side
         self.conn = conn
         self.ip = conn.request.remote_ip
@@ -170,12 +170,12 @@ class Game(object):
     @classmethod
     def on_message(cls, message, conn):
         if message['event'] == 'start_new_game':
-            Game.start_new_game(conn)
+            cls.start_new_game(conn)
             return
         elif message['event'] == 'join_game':
-            Game.join_game(conn)
+            cls.join_game(conn)
             return
-        game = Game.games.get([message['game_id']])
+        game = cls.games.get(message['game_id'])
         if not game:
             # TODO: react
             return
@@ -210,8 +210,9 @@ class Game(object):
         game.players[player.id] = player
         conn.send_message('joined_game', {
             'game_id': game.id,
+            'host_ip': game.default_player.ip,
             'player': {
-                'ip': game.default_player.ip
+                'id': player.id
             }
         })
         game.default_player.conn.send_message('player_joined_game', {
@@ -220,6 +221,7 @@ class Game(object):
                 'ip': player.ip
             }
         })
+        game.current_player = game.default_player
         game.send_position_changed()
 
     def __init__(self, conn):
@@ -231,16 +233,56 @@ class Game(object):
         self.players = {
             self.default_player.id: self.default_player,
         }
+        # Player to move
+        self.current_player = None
 
     def send_position_changed(self):
+        score = self.board.get_score()
         for player_id, player in self.players.items():
             player.conn.send_message('position_changed', {
-                'position': self.board.get_possible_moves_position(player.side)
+                'position': self.board.get_possible_moves_position(
+                    player.side),
+                'my_turn': (self.current_player == player),
+                'my_score': score[player.side],
+                'opponents_score': score[PlayerSide.get_opposite(player.side)]
             })
 
+    def send_game_over(self):
+        score = self.board.get_score()
+        for player_id, player in self.players.items():
+            my_score = score[player.side]
+            opponents_score = score[PlayerSide.get_opposite(player.side)]
+            player.conn.send_message('game_over', {
+                'position': self.board.get_possible_moves_position(
+                    player.side),
+                'i_won': (my_score > opponents_score),
+                'opponent_won': (opponents_score > my_score),
+                'my_score': my_score,
+                'opponents_score': opponents_score
+            })
+        del Game.games[self.id]
+
     def on_move(self, data):
+        player_id = data['player_id']
         try:
-            self.board.make_move(PlayerSide.BLACK, data['x'], data['y'])
+            if not player_id or not player_id in self.players:
+                raise InvalidMoveError('Incorrect player credentials')
+            player = self.players[player_id]
+            if self.current_player != player:
+                raise InvalidMoveError("It's not this player's turn")
+            self.board.make_move(player.side, data['x'], data['y'])
+
+            opposite_side = PlayerSide.get_opposite(player.side)
+            if not self.board.get_valid_moves(opposite_side):
+                self.send_game_over()
+                return
+
+            # Change turns
+            for _, _player in self.players.items():
+                if _player != player:
+                    self.current_player = _player
+                    break
+
         except InvalidMoveError as ex:
             # TODO: react
             print ex
