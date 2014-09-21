@@ -57,8 +57,12 @@ var App = function (options) {
         this.send('game_started', {});
     };
 
-    this.on_board_clicked = function (cellA, cellB) {
-        this.send('move', {'a': cellA, 'b': cellB});
+    this.on_board_clicked = function (cellX, cellY) {
+        if (this.position[cellX][cellY] == CellState.POSSIBLE_MOVE) {
+            this.send('move', {'x': cellX, 'y': cellY});
+        } else {
+            alert('Invalid move');
+        }
     };
 
     this.on_position_changed = function (data) {
