@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Reversi</title>
         <script src="/static/js/vendor/jquery-2.1.1.js"></script>
+        <script src="/static/js/vendor/reconnecting-websocket.js"></script>
         <script src="/static/js/vendor/fabric/fabric.js"></script>
         <script src="/static/js/screen.js"></script>
         <script src="/static/js/app.js"></script>
@@ -13,8 +14,8 @@
             $(function () {
                 window.app = new App({
                     canvasId: 'screen',
-                    host: 'localhost',
-                    port: '8888',
+                    host: location.host,
+                    port: '80'
                 });
                 window.app.run();
             });

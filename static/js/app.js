@@ -13,7 +13,7 @@ var App = function (options) {
 
     this.connect = function () {
         var app = this;
-        this.ws = new WebSocket("ws://" + options.host + ":" + options.port + '/ws');
+        this.ws = new ReconnectingWebSocket("ws://" + options.host + ":" + options.port + '/ws');
 
         this.ws.onmessage = function (evt) {
             // console.log('message received: ' + evt.data);
